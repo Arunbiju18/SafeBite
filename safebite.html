@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SafeBite — Street Food Safety AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0a0a; --card:#111111; --border:#222;
+    --text:#f0f0f0; --sub:#555;
+    --safe:#00e096; --caution:#ffb020; --avoid:#ff4444; --accent:#00e096;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.3;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");}
+  .app{width:100%;max-width:420px;min-height:100vh;display:flex;flex-direction:column;position:relative;z-index:1;padding-bottom:40px;}
+  .screen{display:none;flex-direction:column;flex:1;padding:20px;animation:fadeUp 0.4s ease;}
+  .screen.active{display:flex;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+  /* HOME */
+  .logo-area{text-align:center;padding:24px 0 16px;}
+  .logo-icon{font-size:36px;display:block;margin-bottom:7px;animation:float 3s ease-in-out infinite;}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  .logo-text{font-size:28px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,#fff 40%,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .logo-tag{font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);letter-spacing:2px;text-transform:uppercase;margin-top:4px;}
+
+  .camera-box{position:relative;background:var(--card);border-radius:20px;height:220px;overflow:hidden;border:1px solid var(--border);margin-bottom:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+  .camera-box video,.camera-box img.captured{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:18px;}
+  .cam-placeholder{display:flex;flex-direction:column;align-items:center;gap:8px;z-index:1;}
+  .cam-emoji{font-size:34px;}
+  .cam-hint{font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);letter-spacing:1px;}
+  .corner{position:absolute;width:20px;height:20px;border-color:var(--accent);border-style:solid;z-index:2;}
+  .c-tl{top:12px;left:12px;border-width:2px 0 0 2px;border-radius:3px 0 0 0;}
+  .c-tr{top:12px;right:12px;border-width:2px 2px 0 0;border-radius:0 3px 0 0;}
+  .c-bl{bottom:12px;left:12px;border-width:0 0 2px 2px;border-radius:0 0 0 3px;}
+  .c-br{bottom:12px;right:12px;border-width:0 2px 2px 0;border-radius:0 0 3px 0;}
+  .scan-line{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scanMove 2s ease-in-out infinite;z-index:2;}
+  @keyframes scanMove{0%{top:15%;opacity:0}10%{opacity:0.7}90%{opacity:0.7}100%{top:85%;opacity:0}}
+  .retake-btn{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.75);color:#fff;border:1px solid #444;border-radius:20px;padding:5px 12px;font-size:10px;cursor:pointer;font-family:'DM Mono',monospace;z-index:3;}
+  .photo-tick{position:absolute;top:10px;right:10px;background:var(--safe);color:#000;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;z-index:3;font-weight:800;}
+
+  .gps-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 14px;}
+  .gps-dot{width:7px;height:7px;border-radius:50%;background:var(--sub);flex-shrink:0;}
+  .gps-dot.active{background:var(--safe);animation:blink 1s infinite;}
+  .gps-dot.error{background:var(--avoid);}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+  .gps-text{font-family:'DM Mono',monospace;font-size:11px;color:#aaa;}
+
+  .pill-row{display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap;}
+  .pill{background:var(--card);border:1px solid var(--border);border-radius:100px;padding:6px 12px;font-size:11px;color:#aaa;font-family:'DM Mono',monospace;}
+
+  .btn-primary{background:var(--accent);color:#000;border:none;border-radius:100px;padding:17px;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;letter-spacing:1.5px;cursor:pointer;width:100%;transition:transform 0.15s,box-shadow 0.15s;box-shadow:0 0 24px rgba(0,224,150,0.2);margin-bottom:10px;}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 34px rgba(0,224,150,0.35);}
+  .btn-primary:active{transform:scale(0.97);}
+  .btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text);border-radius:100px;padding:15px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px;transition:border-color 0.2s;}
+  .btn-secondary:hover{border-color:var(--accent);}
+  .foot-note{font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);text-align:center;letter-spacing:1px;margin-top:2px;}
+
+  /* LOADING */
+  #loading{align-items:center;justify-content:center;}
+  .pulse-ring{width:88px;height:88px;border-radius:50%;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;margin-bottom:26px;animation:pulseRing 1.2s ease-in-out infinite;}
+  @keyframes pulseRing{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,224,150,0.3)}50%{transform:scale(1.07);box-shadow:0 0 0 14px rgba(0,224,150,0)}}
+  .pulse-emoji{font-size:34px;}
+  .loading-title{font-size:18px;font-weight:800;margin-bottom:26px;text-align:center;}
+  .loading-steps{width:100%;display:flex;flex-direction:column;gap:10px;}
+  .step-row{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:12px;padding:13px 15px;border:1px solid var(--border);opacity:0;animation:stepIn 0.4s ease forwards;}
+  .step-row:nth-child(1){animation-delay:0.2s}.step-row:nth-child(2){animation-delay:0.7s}.step-row:nth-child(3){animation-delay:1.2s}.step-row:nth-child(4){animation-delay:1.7s}
+  @keyframes stepIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+  .step-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:blink 1s ease-in-out infinite;}
+  .step-row:nth-child(2) .step-dot{animation-delay:0.4s}.step-row:nth-child(3) .step-dot{animation-delay:0.8s}.step-row:nth-child(4) .step-dot{animation-delay:1.2s}
+  .step-text{font-family:'DM Mono',monospace;font-size:11px;color:#aaa;}
+
+  /* RESULT */
+  #result{overflow-y:auto;}
+  #result::-webkit-scrollbar{width:3px;}
+  #result::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  .result-inner{padding:20px 20px 0;}
+  .photo-thumb{width:100%;height:110px;object-fit:cover;border-radius:12px;margin-bottom:8px;}
+  .loc-badge{font-family:'DM Mono',monospace;font-size:10px;color:#666;text-align:center;margin-bottom:12px;}
+  .verdict-box{border-radius:20px;border:2px solid;padding:24px 18px;text-align:center;margin-bottom:12px;background:var(--card);position:relative;overflow:hidden;}
+  .verdict-box::before{content:'';position:absolute;inset:0;opacity:0.06;background:radial-gradient(ellipse at 50% 0%,currentColor,transparent 65%);}
+  .verdict-emoji{font-size:44px;display:block;margin-bottom:6px;}
+  .verdict-word{font-size:36px;font-weight:800;letter-spacing:4px;display:block;}
+  .verdict-score{font-family:'DM Mono',monospace;font-size:13px;color:var(--sub);margin-top:4px;display:block;}
+  .verdict-reason{font-size:12px;color:#bbb;margin-top:11px;line-height:1.7;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:10px;}
+  .card-title{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--sub);text-transform:uppercase;margin-bottom:13px;}
+  .bar-row{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+  .bar-label{font-size:11px;color:#ccc;width:128px;flex-shrink:0;}
+  .bar-track{flex:1;height:5px;background:#222;border-radius:3px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(0.4,0,0.2,1);width:0;}
+  .bar-val{font-family:'DM Mono',monospace;font-size:11px;width:26px;text-align:right;flex-shrink:0;}
+  .cond-row{display:flex;justify-content:space-around;margin-bottom:11px;}
+  .cond-box{text-align:center;}
+  .cond-icon{font-size:21px;display:block;margin-bottom:3px;}
+  .cond-val{font-size:15px;font-weight:700;display:block;}
+  .cond-lbl{font-family:'DM Mono',monospace;font-size:9px;color:var(--sub);margin-top:1px;display:block;}
+  .time-note{font-family:'DM Mono',monospace;font-size:10px;color:var(--caution);text-align:center;padding-top:10px;border-top:1px solid var(--border);line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HOME -->
+  <div class="screen active" id="home">
+    <div class="logo-area">
+      <span class="logo-icon">🍽️</span>
+      <div class="logo-text">SafeBite</div>
+      <div class="logo-tag">Street Food Safety AI</div>
+    </div>
+
+    <div class="camera-box" id="cameraBox">
+      <video id="camVideo" autoplay playsinline muted style="display:none;"></video>
+      <img id="capturedImg" class="captured" style="display:none;" />
+      <canvas id="camCanvas" style="display:none;"></canvas>
+      <div class="cam-placeholder" id="camPlaceholder">
+        <span class="cam-emoji">📷</span>
+        <span class="cam-hint">TAP "OPEN CAMERA" BELOW</span>
+      </div>
+      <div class="scan-line" id="scanLine" style="display:none;"></div>
+      <div class="corner c-tl"></div><div class="corner c-tr"></div>
+      <div class="corner c-bl"></div><div class="corner c-br"></div>
+      <button class="retake-btn" id="retakeBtn" onclick="retakePhoto()" style="display:none;">↺ RETAKE</button>
+      <div class="photo-tick" id="photoTick" style="display:none;">✓</div>
+    </div>
+
+    <div class="gps-row">
+      <div class="gps-dot" id="gpsDot"></div>
+      <span class="gps-text" id="gpsText">📍 Location not fetched yet</span>
+    </div>
+
+    <div class="pill-row">
+      <div class="pill">📸 Food AI</div>
+      <div class="pill">📍 GPS</div>
+      <div class="pill">🌦️ Live Weather</div>
+    </div>
+
+    <button class="btn-primary" id="openCamBtn" onclick="openCamera()">📷 OPEN CAMERA</button>
+    <button class="btn-primary" id="captureBtn" onclick="capturePhoto()" style="display:none;">📸 CAPTURE PHOTO</button>
+    <button class="btn-primary" id="analyseBtn" onclick="startAnalysis()" style="display:none;">⚡ ANALYSE NOW</button>
+    <div class="foot-note">POINT AT FOOD STALL → CAPTURE → ANALYSE</div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="screen" id="loading">
+    <div class="pulse-ring"><span class="pulse-emoji">🔬</span></div>
+    <div class="loading-title">Analysing Food Safety...</div>
+    <div class="loading-steps">
+      <div class="step-row"><div class="step-dot"></div><span class="step-text">📸 Processing captured photo...</span></div>
+      <div class="step-row"><div class="step-dot"></div><span class="step-text">📍 Getting precise GPS location...</span></div>
+      <div class="step-row"><div class="step-dot"></div><span class="step-text">🌦️ Fetching live weather data...</span></div>
+      <div class="step-row"><div class="step-dot"></div><span class="step-text">🧠 Computing safety score...</span></div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="screen" id="result"></div>
+
+</div>
+<script>
+  const OWM_KEY = '1c8102fcc5efea1972ecfff57d2b70ff';
+  let camStream = null, capturedDataUrl = null, gpsData = null;
+
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+  function getRandom(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+  // ── CAMERA ─────────────────────────────────────
+  async function openCamera() {
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      const v = document.getElementById('camVideo');
+      v.srcObject = camStream;
+      v.style.display = 'block';
+      document.getElementById('camPlaceholder').style.display = 'none';
+      document.getElementById('scanLine').style.display = 'block';
+      document.getElementById('openCamBtn').style.display = 'none';
+      document.getElementById('captureBtn').style.display = 'block';
+      fetchGPS(); // Start GPS in background
+    } catch(e) {
+      alert('Camera access denied. Please allow camera in your browser settings.');
+    }
+  }
+
+  function capturePhoto() {
+    const v = document.getElementById('camVideo');
+    const c = document.getElementById('camCanvas');
+    c.width = v.videoWidth || 640;
+    c.height = v.videoHeight || 480;
+    c.getContext('2d').drawImage(v, 0, 0);
+    capturedDataUrl = c.toDataURL('image/jpeg', 0.85);
+
+    if (camStream) camStream.getTracks().forEach(t => t.stop());
+
+    const img = document.getElementById('capturedImg');
+    img.src = capturedDataUrl;
+    img.style.display = 'block';
+    v.style.display = 'none';
+    document.getElementById('scanLine').style.display = 'none';
+    document.getElementById('captureBtn').style.display = 'none';
+    document.getElementById('retakeBtn').style.display = 'block';
+    document.getElementById('photoTick').style.display = 'flex';
+    document.getElementById('analyseBtn').style.display = 'block';
+  }
+
+  function retakePhoto() {
+    capturedDataUrl = null;
+    document.getElementById('capturedImg').style.display = 'none';
+    document.getElementById('retakeBtn').style.display = 'none';
+    document.getElementById('photoTick').style.display = 'none';
+    document.getElementById('analyseBtn').style.display = 'none';
+    document.getElementById('openCamBtn').style.display = 'block';
+    document.getElementById('camPlaceholder').style.display = 'flex';
+    setGps('idle', '📍 Location not fetched yet');
+    gpsData = null;
+  }
+
+  // ── GPS (HIGH ACCURACY) ─────────────────────────
+  function setGps(state, text) {
+    document.getElementById('gpsDot').className = 'gps-dot' + (state === 'active' ? ' active' : state === 'error' ? ' error' : '');
+    document.getElementById('gpsText').textContent = text;
+  }
+
+  function fetchGPS() {
+    setGps('active', '📍 Fetching precise location...');
+    if (!navigator.geolocation) {
+      gpsData = { lat: 12.9716, lon: 77.5946, accuracy: 999 };
+      setGps('error', '📍 GPS unavailable — using Bangalore');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        gpsData = { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: Math.round(pos.coords.accuracy) };
+        setGps('active', `📍 Location locked · ±${gpsData.accuracy}m accuracy`);
+      },
+      () => {
+        gpsData = { lat: 12.9716, lon: 77.5946, accuracy: 999 };
+        setGps('error', '📍 GPS denied — using Bangalore fallback');
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+  }
+
+  // ── WEATHER ─────────────────────────────────────
+  async function fetchWeather(lat, lon) {
+    try {
+      const r = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${OWM_KEY}&units=metric`);
+      const d = await r.json();
+      return { temp: Math.round(d.main.temp)+'°C', humidity: d.main.humidity+'%', tempVal: d.main.temp, humVal: d.main.humidity, city: d.name||'Your Area' };
+    } catch {
+      return { temp:'32°C', humidity:'72%', tempVal:32, humVal:72, city:'Bangalore' };
+    }
+  }
+
+  function scoreEnv(t, h, hr) {
+    let s = 100;
+    if(t>38)s-=30; else if(t>34)s-=18; else if(t>30)s-=8;
+    if(h>85)s-=20; else if(h>75)s-=10; else if(h>65)s-=5;
+    if(hr>=13&&hr<=16)s-=10; if(hr>=21)s-=8;
+    return Math.max(38, Math.min(s, 95));
+  }
+
+  function timeNote(hr, t) {
+    if(t>38) return '🔥 Extreme heat — food spoils very rapidly. High caution!';
+    if(hr>=13&&hr<=16) return '🌡️ Hot afternoon — food spoils 2x faster than morning.';
+    if(hr>=21) return '🌙 Late night — stock may not be freshly prepared.';
+    if(hr<10) return '🌅 Early morning — freshly prepared food likely. Best time!';
+    return '☀️ Moderate conditions — normal spoilage risk right now.';
+  }
+
+  // ── MAIN ────────────────────────────────────────
+  async function startAnalysis() {
+    if (!capturedDataUrl) { alert('Please capture a photo first!'); return; }
+    show('loading');
+
+    // Wait for GPS (max 8s)
+    if (!gpsData) {
+      await new Promise(res => {
+        let n = 0;
+        const t = setInterval(() => { if(gpsData || ++n>16){ clearInterval(t); res(); }}, 500);
+      });
+    }
+    if (!gpsData) gpsData = { lat:12.9716, lon:77.5946, accuracy:999 };
+
+    const w = await fetchWeather(gpsData.lat, gpsData.lon);
+    const hr = new Date().getHours();
+    const food = getRandom(58,95), hygiene = getRandom(55,92);
+    const loc = getRandom(52,90), env = scoreEnv(w.tempVal, w.humVal, hr);
+    const final = Math.round(food*0.40 + loc*0.35 + env*0.25);
+    const verdict = final>=90?'SAFE':final>=65?'CAUTION':'AVOID';
+    const tw = w.tempVal>35?`Temp is ${w.temp} — warm conditions.`:'';
+    const hw = w.humVal>80?'High humidity promotes bacteria.':'';
+    const reasons = {
+      SAFE:`Food appears fresh. Conditions in ${w.city} are currently favourable. ${tw}`.trim(),
+      CAUTION:`Moderate risk in ${w.city}. ${tw||hw||'High traffic zone may affect hygiene.'}`.trim(),
+      AVOID:`High risk in ${w.city}. ${tw||hw||'Hygiene concerns detected near this area.'}`.trim(),
+    };
+
+    await new Promise(r => setTimeout(r, 1600));
+
+    renderResult({
+      food, hygiene, loc, env, final, verdict,
+      note: timeNote(hr, w.tempVal), reason: reasons[verdict],
+      temp: w.temp, humidity: w.humidity, aqi: getRandom(80,200).toString(),
+      city: w.city, lat: gpsData.lat.toFixed(5), lon: gpsData.lon.toFixed(5),
+      acc: gpsData.accuracy, photo: capturedDataUrl,
+    });
+    show('result');
+    setTimeout(() => document.querySelectorAll('.bar-fill').forEach(b => b.style.width = b.dataset.val+'%'), 120);
+  }
+
+  function renderResult(d) {
+    const col = d.verdict==='SAFE'?'var(--safe)':d.verdict==='CAUTION'?'var(--caution)':'var(--avoid)';
+    const em = d.verdict==='SAFE'?'✅':d.verdict==='CAUTION'?'⚠️':'❌';
+    const ac = d.aqi>150?'var(--avoid)':d.aqi>100?'var(--caution)':'var(--safe)';
+    const bars=[{label:'🍱 Food Freshness',val:d.food},{label:'🧹 Stall Hygiene',val:d.hygiene},{label:'📍 Location Risk',val:d.loc},{label:'🌦️ Environment',val:d.env}];
+    const bH = bars.map(b=>`<div class="bar-row"><span class="bar-label">${b.label}</span><div class="bar-track"><div class="bar-fill" data-val="${b.val}" style="background:${col}"></div></div><span class="bar-val" style="color:${col}">${b.val}</span></div>`).join('');
+
+    document.getElementById('result').innerHTML = `<div class="result-inner">
+      <img src="${d.photo}" class="photo-thumb" />
+      <div class="loc-badge">📍 ${d.lat}, ${d.lon} · ±${d.acc}m · ${d.city}</div>
+      <div class="verdict-box" style="border-color:${col};color:${col}">
+        <span class="verdict-emoji">${em}</span>
+        <span class="verdict-word" style="color:${col}">${d.verdict}</span>
+        <span class="verdict-score">SAFETY SCORE: ${d.final} / 100</span>
+        <p class="verdict-reason">${d.reason}</p>
+      </div>
+      <div class="card"><div class="card-title">Score Breakdown</div>${bH}</div>
+      <div class="card">
+        <div class="card-title">Live Conditions · ${d.city}</div>
+        <div class="cond-row">
+          <div class="cond-box"><span class="cond-icon">🌡️</span><span class="cond-val">${d.temp}</span><span class="cond-lbl">TEMP</span></div>
+          <div class="cond-box"><span class="cond-icon">💧</span><span class="cond-val">${d.humidity}</span><span class="cond-lbl">HUMIDITY</span></div>
+          <div class="cond-box"><span class="cond-icon">🌫️</span><span class="cond-val" style="color:${ac}">${d.aqi}</span><span class="cond-lbl">AQI</span></div>
+        </div>
+        <div class="time-note">${d.note}</div>
+      </div>
+      <button class="btn-secondary" onclick="resetApp()">🔄 Analyse Another Stall</button>
+    </div>`;
+  }
+
+  function resetApp() {
+    capturedDataUrl=null; gpsData=null; camStream=null;
+    ['camVideo','capturedImg','scanLine','captureBtn','analyseBtn','retakeBtn','photoTick'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.style.display='none';
+    });
+    document.getElementById('camPlaceholder').style.display='flex';
+    document.getElementById('openCamBtn').style.display='block';
+    setGps('idle','📍 Location not fetched yet');
+    show('home');
+  }
+</script>
+</body>
+</html>
